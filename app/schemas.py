@@ -5,14 +5,34 @@ from pydantic import BaseModel, EmailStr, Field
 # ----------------- Auth & User Schemas -----------------
 class UserRegister(BaseModel):
     email: EmailStr
-    password: str = Field(..., min_length=6)
+    password: str = Field(..., min_length=8)
     full_name: str
     phone: Optional[str] = None
     role: str = "Buyer"  # Admin, Shop, Shipper, Buyer
+    recaptcha_token: Optional[str] = None  # reCAPTCHA v3 / Turnstile token
 
 class UserLogin(BaseModel):
     email: EmailStr
     password: str
+    recaptcha_token: Optional[str] = None  # reCAPTCHA v3 / Turnstile token
+
+class ChangePasswordRequest(BaseModel):
+    old_password: str
+    new_password: str = Field(..., min_length=8)
+
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
+
+class ForgotPasswordResponse(BaseModel):
+    message: str
+    reset_token: Optional[str] = None  # only returned when EXPOSE_RESET_TOKEN=true
+
+class ResetPasswordRequest(BaseModel):
+    token: str
+    new_password: str = Field(..., min_length=8)
+
+class MessageResponse(BaseModel):
+    message: str
 
 class TokenResponse(BaseModel):
     access_token: str

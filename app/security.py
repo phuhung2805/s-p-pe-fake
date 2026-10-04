@@ -23,6 +23,45 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
     except Exception:
         return False
 
+
+# Constant-time decoy used when an account does not exist, so login timing does
+# not leak whether an email is registered.
+DUMMY_PASSWORD_HASH = "$2b$12$C6UzMDM.H6dfI/f/IKcEeO7ZBp1h1q3fV1oH/0h9Q4zM8Yw1nW8bS"  # bcrypt hash of a random string
+
+def dummy_password_check(password: str) -> None:
+    try:
+        bcrypt.checkpw(password.encode("utf-8"), DUMMY_PASSWORD_HASH.encode("utf-8"))
+    except Exception:
+        pass
+
+
+# ----------------- Password Policy -----------------
+def validate_password_strength(password: str) -> None:
+    """
+    Enforces a minimum password policy. Raises ValueError with a human-readable
+    reason when the password is not strong enough.
+    """
+    if not password or len(password) < 8:
+        raise ValueError("Mật khẩu phải có tối thiểu 8 ký tự.")
+    if not any(c.isupper() for c in password):
+        raise ValueError("Mật khẩu phải chứa ít nhất 1 chữ hoa.")
+    if not any(c.islower() for c in password):
+        raise ValueError("Mật khẩu phải chứa ít nhất 1 chữ thường.")
+    if not any(c.isdigit() for c in password):
+        raise ValueError("Mật khẩu phải chứa ít nhất 1 chữ số.")
+    if not any(not c.isalnum() for c in password):
+        raise ValueError("Mật khẩu phải chứa ít nhất 1 ký tự đặc biệt.")
+
+
+# ----------------- Password Reset Tokens -----------------
+def generate_reset_token() -> str:
+    """Returns a URL-safe, high-entropy password reset token (raw value)."""
+    return secrets.token_urlsafe(32)
+
+def hash_reset_token(raw_token: str) -> str:
+    """Reset tokens are stored hashed so a DB leak cannot be replayed."""
+    return hashlib.sha256(raw_token.encode("utf-8")).hexdigest()
+
 # ----------------- JWT Authentication -----------------
 def create_access_token(data: dict, expires_delta: datetime.timedelta = None) -> str:
     to_encode = data.copy()
@@ -31,6 +70,8 @@ def create_access_token(data: dict, expires_delta: datetime.timedelta = None) ->
     else:
         expire = datetime.datetime.utcnow() + datetime.timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     to_encode.update({"exp": expire, "iat": datetime.datetime.utcnow()})
+    # Explicit token typing prevents cross-token confusion (RFC 8725 / OWASP JWT).
+    to_encode.setdefault("token_type", "access")
     return jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
 
 def decode_access_token(token: str) -> dict:

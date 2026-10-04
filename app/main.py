@@ -77,3 +77,17 @@ def health_check():
         "platform": settings.PROJECT_NAME,
         "version": settings.PROJECT_VERSION
     }
+
+@app.get("/api/config")
+def public_config():
+    """Public runtime configuration consumed by the web client (no secrets)."""
+    return {
+        "site_name": settings.SITE_NAME,
+        "environment": settings.ENVIRONMENT,
+        "demo_mode": settings.SEED_DEMO_DATA,
+        "default_location": {
+            "lat": settings.DEFAULT_LATITUDE,
+            "lon": settings.DEFAULT_LONGITUDE,
+        },
+        "recaptcha_site_key": settings.CAPTCHA_SITE_KEY if settings.CAPTCHA_ENABLED else None,
+    }

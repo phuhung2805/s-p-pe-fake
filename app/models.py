@@ -59,8 +59,18 @@ class User(Base):
     fraud_score = Column(Integer, default=0)  # Fraud warning score (Module 8)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
 
+    # Security fields (Module 1)
+    token_version = Column(Integer, nullable=False, default=0)  # Bumped to revoke all issued JWTs
+    failed_login_attempts = Column(Integer, nullable=False, default=0)
+    locked_until = Column(DateTime, nullable=True)  # Account lockout after repeated failures
+    last_login_at = Column(DateTime, nullable=True)
+    password_changed_at = Column(DateTime, nullable=True)
+
     # Relationships
     shops = relationship("Shop", back_populates="owner", cascade="all, delete-orphan")
+    password_reset_tokens = relationship(
+        "PasswordResetToken", back_populates="user", cascade="all, delete-orphan"
+    )
     buyer_orders = relationship("Order", back_populates="buyer", foreign_keys="[Order.buyer_id]")
     shipper_packages = relationship("Package", back_populates="shipper", foreign_keys="[Package.shipper_id]")
     disputes = relationship("Dispute", back_populates="reporter")
@@ -230,6 +240,21 @@ class Review(Base):
     product = relationship("Product", back_populates="reviews")
     buyer = relationship("User", back_populates="reviews")
     order = relationship("Order", back_populates="reviews")
+
+
+class PasswordResetToken(Base):
+    __tablename__ = "password_reset_tokens"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    token_hash = Column(String(128), nullable=False, unique=True, index=True)
+    expires_at = Column(DateTime, nullable=False)
+    used = Column(Boolean, default=False, nullable=False)
+    requested_ip = Column(String(64), nullable=True)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+
+    # Relationships
+    user = relationship("User", back_populates="password_reset_tokens")
 
 
 class AuditLog(Base):

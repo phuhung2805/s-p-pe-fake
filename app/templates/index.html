@@ -3,83 +3,249 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Sàn TMĐT Đa Gian Hàng Bảo Mật - QR Chống Tráo Hàng & Ký Quỹ Escrow</title>
+  <title>Escrow Anti-Tamper — Nền tảng TMĐT ký quỹ & tem QR bảo mật</title>
+  <meta name="description" content="Nền tảng thương mại điện tử đa gian hàng với ký quỹ Escrow, tem QR chống tráo hàng HMAC-SHA256 và xác thực 4 bên.">
+  <meta property="og:title" content="Escrow Anti-Tamper — TMĐT ký quỹ & tem QR">
+  <meta property="og:description" content="Chống tráo ruột kiện hàng, ký quỹ bảo chứng, xác thực QR 4 bên.">
+  <meta property="og:type" content="website">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='6' fill='%230d9488'/%3E%3Cpath d='M12 4l6 3v5c0 4-2.5 6.5-6 8-3.5-1.5-6-4-6-8V7z' fill='white'/%3E%3C/svg%3E">
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#f0fdfa', 100: '#ccfbf1', 200: '#99f6e4', 300: '#5eead4', 400: '#2dd4bf',
+              500: '#14b8a6', 600: '#0d9488', 700: '#0f766e', 800: '#115e59', 900: '#134e4a'
+            }
+          },
+          fontFamily: { sans: ['"Plus Jakarta Sans"', 'ui-sans-serif', 'system-ui', 'sans-serif'] }
+        }
+      }
+    };
+  </script>
   <!-- Lucide Icons -->
   <script src="https://unpkg.com/lucide@latest"></script>
   <!-- HTML5 QR Code Scanner Library -->
   <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
-    body { font-family: 'Inter', sans-serif; }
-    .badge-pending { @apply bg-amber-100 text-amber-800 border border-amber-300; }
-    .badge-packed { @apply bg-blue-100 text-blue-800 border border-blue-300; }
-    .badge-transit { @apply bg-purple-100 text-purple-800 border border-purple-300; }
-    .badge-verified { @apply bg-emerald-100 text-emerald-800 border border-emerald-300; }
-    .badge-disputed { @apply bg-rose-100 text-rose-800 border border-rose-300; }
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+    html { scroll-behavior: smooth; }
+    body { font-family: 'Plus Jakarta Sans', sans-serif; font-variant-numeric: tabular-nums; -webkit-font-smoothing: antialiased; }
+    :focus-visible { outline: 2px solid #0d9488; outline-offset: 2px; border-radius: 6px; }
+    button, a { transition: background-color .2s ease, color .2s ease, border-color .2s ease, transform .15s ease, box-shadow .2s ease; }
+    button:active:not(:disabled) { transform: scale(.98); }
+    .badge-pending { background:#fef3c7; color:#92400e; border:1px solid #fcd34d; }
+    .badge-packed { background:#e0f2fe; color:#075985; border:1px solid #7dd3fc; }
+    .badge-transit { background:#ccfbf1; color:#115e59; border:1px solid #5eead4; }
+    .badge-verified { background:#d1fae5; color:#065f46; border:1px solid #6ee7b7; }
+    .badge-disputed { background:#ffe4e6; color:#9f1239; border:1px solid #fda4af; }
+    .skeleton { background:linear-gradient(90deg,#eef2f7 25%,#e2e8f0 37%,#eef2f7 63%); background-size:400% 100%; animation:shimmer 1.4s ease infinite; }
+    @keyframes shimmer { 0%{background-position:100% 0} 100%{background-position:-100% 0} }
+    .tl-line::before { content:''; position:absolute; left:11px; top:26px; bottom:-2px; width:2px; background:#e2e8f0; }
+    .scroll-thin::-webkit-scrollbar { height:8px; width:8px; }
+    .scroll-thin::-webkit-scrollbar-thumb { background:#cbd5e1; border-radius:9999px; }
     @media print {
       body * { visibility: hidden; }
       #printable-waybill, #printable-waybill * { visibility: visible; }
       #printable-waybill { position: absolute; left: 0; top: 0; width: 100%; }
+      @page { size: A6; margin: 6mm; }
     }
   </style>
 </head>
 <body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col">
 
-  <!-- TOP ROLE SWITCHER NAVBAR -->
-  <header class="bg-slate-900 text-white sticky top-0 z-50 shadow-md">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
-      <div class="flex flex-col md:flex-row items-center justify-between gap-3">
-        <!-- Logo -->
-        <div class="flex items-center space-x-3">
-          <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-500 to-emerald-400 flex items-center justify-center font-bold text-xl shadow-lg">
-            🛡️
+  <!-- ========================================== -->
+  <!-- AUTH SCREEN (Login / Register)             -->
+  <!-- ========================================== -->
+  <!-- AUTH MODAL (Login / Register) -->
+  <div id="auth-screen" class="fixed inset-0 z-[100] hidden items-center justify-center p-4 text-white">
+    <div class="absolute inset-0 bg-slate-950/70 backdrop-blur-sm" onclick="closeAuthModal()"></div>
+    <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[760px] h-[760px] bg-brand-500/5 rounded-full blur-3xl pointer-events-none"></div>
+
+    <div class="relative w-full max-w-md bg-slate-900/90 backdrop-blur-2xl border border-white/10 rounded-3xl p-8 shadow-2xl shadow-black/60 max-h-[92vh] overflow-y-auto">
+      <button type="button" onclick="closeAuthModal()" aria-label="Đóng"
+              class="absolute top-3 right-3 p-2 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition">
+        <i data-lucide="x" class="w-4 h-4"></i>
+      </button>
+      <!-- Brand -->
+      <div class="text-center mb-6">
+        <div class="inline-flex w-12 h-12 items-center justify-center rounded-2xl bg-brand-600 shadow-lg shadow-brand-600/30 mb-3">
+          <i data-lucide="shield-check" class="w-6 h-6 text-white"></i>
+        </div>
+        <h1 class="text-xl font-extrabold tracking-tight">ESCROW ANTI-TAMPER</h1>
+        <p class="text-xs text-slate-400 mt-1">Nền tảng TMĐT đa gian hàng • Ký quỹ &amp; tem QR bảo mật</p>
+      </div>
+
+      <!-- Tabs -->
+      <div class="grid grid-cols-2 gap-1 p-1 bg-slate-950/60 rounded-xl mb-6 border border-white/5">
+        <button type="button" id="auth-tab-login" onclick="showAuthTab('login')" class="py-2 text-xs font-bold rounded-lg bg-brand-600 text-white transition">Đăng nhập</button>
+        <button type="button" id="auth-tab-register" onclick="showAuthTab('register')" class="py-2 text-xs font-bold rounded-lg text-slate-400 hover:text-white transition">Đăng ký</button>
+      </div>
+
+      <!-- LOGIN FORM -->
+      <form id="login-form" onsubmit="doLogin(event)" class="space-y-4">
+        <div>
+          <label class="text-xs font-semibold text-slate-300 block mb-1.5">Email</label>
+          <div class="relative">
+            <i data-lucide="mail" class="w-4 h-4 absolute left-3.5 top-3.5 text-slate-500"></i>
+            <input id="login-email" type="email" required placeholder="you@example.com"
+                   class="w-full pl-10 pr-4 py-2.5 bg-slate-950/50 border border-white/10 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-brand-500/40 focus:border-brand-500">
+          </div>
+        </div>
+        <div>
+          <label class="text-xs font-semibold text-slate-300 block mb-1.5">Mật khẩu</label>
+          <div class="relative">
+            <i data-lucide="lock" class="w-4 h-4 absolute left-3.5 top-3.5 text-slate-500"></i>
+            <input id="login-password" type="password" required placeholder="Nhập mật khẩu"
+                   class="w-full pl-10 pr-11 py-2.5 bg-slate-950/50 border border-white/10 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-brand-500/40 focus:border-brand-500">
+            <button type="button" onclick="togglePassword('login-password', this)" aria-label="Hiện mật khẩu"
+                    class="absolute right-2.5 top-2 p-1.5 rounded-md text-slate-500 hover:text-slate-300 transition">
+              <i data-lucide="eye" class="w-4 h-4"></i>
+            </button>
+          </div>
+        </div>
+        <p id="login-error" class="hidden text-xs text-rose-300 bg-rose-500/10 border border-rose-500/20 rounded-lg px-3 py-2"></p>
+        <button type="submit" id="login-submit"
+                class="w-full h-11 bg-brand-600 hover:bg-brand-500 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition active:scale-[0.99] disabled:opacity-60">
+          <i data-lucide="log-in" class="w-4 h-4"></i>
+          <span id="login-submit-text">Đăng nhập</span>
+        </button>
+        <p class="text-center text-xs text-slate-400">
+          Chưa có tài khoản?
+          <button type="button" onclick="showAuthTab('register')" class="text-brand-400 font-semibold hover:underline">Đăng ký ngay</button>
+        </p>
+      </form>
+
+      <!-- REGISTER FORM -->
+      <form id="register-form" onsubmit="doRegister(event)" class="space-y-3.5 hidden">
+        <div>
+          <label class="text-xs font-semibold text-slate-300 block mb-1.5">Họ và tên</label>
+          <div class="relative">
+            <i data-lucide="user" class="w-4 h-4 absolute left-3.5 top-3.5 text-slate-500"></i>
+            <input id="reg-name" type="text" required placeholder="Nguyễn Văn A"
+                   class="w-full pl-10 pr-4 py-2.5 bg-slate-950/50 border border-white/10 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-brand-500/40 focus:border-brand-500">
+          </div>
+        </div>
+        <div>
+          <label class="text-xs font-semibold text-slate-300 block mb-1.5">Email</label>
+          <div class="relative">
+            <i data-lucide="mail" class="w-4 h-4 absolute left-3.5 top-3.5 text-slate-500"></i>
+            <input id="reg-email" type="email" required placeholder="you@example.com"
+                   class="w-full pl-10 pr-4 py-2.5 bg-slate-950/50 border border-white/10 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-brand-500/40 focus:border-brand-500">
+          </div>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label class="text-xs font-semibold text-slate-300 block mb-1.5">Số điện thoại</label>
+            <div class="relative">
+              <i data-lucide="phone" class="w-4 h-4 absolute left-3.5 top-3.5 text-slate-500"></i>
+              <input id="reg-phone" type="tel" placeholder="0912345678"
+                     class="w-full pl-10 pr-4 py-2.5 bg-slate-950/50 border border-white/10 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-brand-500/40 focus:border-brand-500">
+            </div>
           </div>
           <div>
+            <label class="text-xs font-semibold text-slate-300 block mb-1.5">Vai trò</label>
+            <div class="relative">
+              <i data-lucide="users" class="w-4 h-4 absolute left-3.5 top-3.5 text-slate-500 z-10"></i>
+              <select id="reg-role"
+                      class="w-full pl-10 pr-3 py-2.5 bg-slate-950/50 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:ring-2 focus:ring-brand-500/40 focus:border-brand-500">
+                <option value="Buyer">Khách Hàng (Buyer)</option>
+                <option value="Shop">Gian Hàng (Shop)</option>
+                <option value="Shipper">Tài Xế (Shipper)</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        <div>
+          <label class="text-xs font-semibold text-slate-300 block mb-1.5">Mật khẩu</label>
+          <div class="relative">
+            <i data-lucide="lock" class="w-4 h-4 absolute left-3.5 top-3.5 text-slate-500"></i>
+            <input id="reg-password" type="password" required placeholder="Tối thiểu 8 ký tự, có chữ hoa/số/ký tự đặc biệt"
+                   class="w-full pl-10 pr-11 py-2.5 bg-slate-950/50 border border-white/10 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-brand-500/40 focus:border-brand-500">
+            <button type="button" onclick="togglePassword('reg-password', this)" aria-label="Hiện mật khẩu"
+                    class="absolute right-2.5 top-2 p-1.5 rounded-md text-slate-500 hover:text-slate-300 transition">
+              <i data-lucide="eye" class="w-4 h-4"></i>
+            </button>
+          </div>
+          <p class="text-[11px] text-slate-500 mt-1.5">Yêu cầu: ≥ 8 ký tự, gồm chữ hoa, chữ thường, chữ số và ký tự đặc biệt.</p>
+        </div>
+        <div>
+          <label class="text-xs font-semibold text-slate-300 block mb-1.5">Xác nhận mật khẩu</label>
+          <div class="relative">
+            <i data-lucide="lock" class="w-4 h-4 absolute left-3.5 top-3.5 text-slate-500"></i>
+            <input id="reg-confirm" type="password" required placeholder="Nhập lại mật khẩu"
+                   class="w-full pl-10 pr-4 py-2.5 bg-slate-950/50 border border-white/10 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-brand-500/40 focus:border-brand-500">
+          </div>
+        </div>
+        <p id="register-error" class="hidden text-xs text-rose-300 bg-rose-500/10 border border-rose-500/20 rounded-lg px-3 py-2"></p>
+        <button type="submit" id="register-submit"
+                class="w-full h-11 bg-brand-600 hover:bg-brand-500 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition active:scale-[0.99] disabled:opacity-60">
+          <i data-lucide="user-plus" class="w-4 h-4"></i>
+          <span id="register-submit-text">Đăng ký tài khoản</span>
+        </button>
+        <p class="text-center text-xs text-slate-400">
+          Đã có tài khoản?
+          <button type="button" onclick="showAuthTab('login')" class="text-brand-400 font-semibold hover:underline">Đăng nhập ngay</button>
+        </p>
+      </form>
+    </div>
+  </div>
+
+  <!-- TOP NAVBAR -->
+  <header id="app-header" class="bg-slate-900 text-white sticky top-0 z-50 shadow-md hidden">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
+      <div class="flex items-center justify-between gap-3">
+        <!-- Brand -->
+        <div class="flex items-center space-x-3 min-w-0">
+          <div class="w-10 h-10 shrink-0 rounded-xl bg-gradient-to-tr from-brand-500 to-emerald-400 flex items-center justify-center shadow-lg">
+            <i data-lucide="shield-check" class="w-5 h-5 text-white"></i>
+          </div>
+          <div class="min-w-0">
             <h1 class="text-base font-bold tracking-tight text-white flex items-center gap-2">
-              ESCROW ANTI-TAMPER E-COMMERCE
-              <span class="text-xs font-semibold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">4-Party Security</span>
+              <span id="brand-name">ESCROW ANTI-TAMPER</span>
+              <span class="hidden sm:inline text-[11px] font-semibold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">4-Party Security</span>
             </h1>
-            <p class="text-xs text-slate-400">Chống tráo ruột kiện hàng • Ký quỹ bảo chứng • Tem QR mã hóa HMAC-SHA256</p>
+            <p class="text-xs text-slate-400 truncate">Chống tráo ruột kiện hàng • Ký quỹ bảo chứng • Tem QR HMAC-SHA256</p>
           </div>
         </div>
 
-        <!-- Quick Switch Role Pills -->
-        <div class="flex items-center gap-2 bg-slate-800/90 p-1.5 rounded-xl border border-slate-700/60 overflow-x-auto max-w-full">
-          <span class="text-xs font-semibold text-slate-400 px-2 flex items-center gap-1">
-            <i data-lucide="users" class="w-3.5 h-3.5"></i> Chọn vai trò:
+        <!-- Auth area -->
+        <div class="flex items-center gap-2 text-xs">
+          <span id="nav-role-badge" class="hidden sm:inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-slate-800/80 border border-slate-700/60 text-slate-300">
+            <i data-lucide="user" class="w-3.5 h-3.5"></i> <span id="nav-role-text">Khách</span>
           </span>
-          <button onclick="switchRole('Buyer')" id="role-btn-Buyer" class="px-3 py-1.5 text-xs font-semibold rounded-lg transition-all flex items-center gap-1.5 bg-indigo-600 text-white shadow">
-            🛒 Khách Hàng (Buyer)
-          </button>
-          <button onclick="switchRole('Shop')" id="role-btn-Shop" class="px-3 py-1.5 text-xs font-semibold rounded-lg transition-all flex items-center gap-1.5 text-slate-300 hover:text-white hover:bg-slate-700">
-            🏪 Gian Hàng (Shop)
-          </button>
-          <button onclick="switchRole('Shipper')" id="role-btn-Shipper" class="px-3 py-1.5 text-xs font-semibold rounded-lg transition-all flex items-center gap-1.5 text-slate-300 hover:text-white hover:bg-slate-700">
-            🚚 Tài Xế (Shipper)
-          </button>
-          <button onclick="switchRole('Admin')" id="role-btn-Admin" class="px-3 py-1.5 text-xs font-semibold rounded-lg transition-all flex items-center gap-1.5 text-slate-300 hover:text-white hover:bg-slate-700">
-            👑 Quản Trị Sàn (Admin)
-          </button>
-        </div>
-
-        <!-- Current User Badge -->
-        <div class="flex items-center space-x-3 text-xs">
-          <div class="text-right hidden sm:block">
-            <div id="nav-user-name" class="font-semibold text-slate-200">Đang tải...</div>
-            <div id="nav-user-role" class="text-slate-400">Buyer</div>
-          </div>
-          <a href="/docs" target="_blank" class="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs border border-slate-700 flex items-center gap-1">
+          <a href="/docs" target="_blank" class="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 flex items-center gap-1">
             <i data-lucide="file-code" class="w-3.5 h-3.5"></i> API Docs
           </a>
+
+          <!-- Guest actions -->
+          <div id="nav-guest-area" class="flex items-center gap-2">
+            <button onclick="openAuthTab('register')" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-semibold transition">Đăng ký</button>
+            <button onclick="openAuthTab('login')" class="px-3 py-1.5 rounded-lg bg-brand-600 hover:bg-brand-500 text-white font-semibold flex items-center gap-1.5 transition">
+              <i data-lucide="log-in" class="w-3.5 h-3.5"></i> Đăng nhập
+            </button>
+          </div>
+
+          <!-- Logged-in actions -->
+          <div id="nav-user-area" class="hidden items-center gap-2">
+            <div class="text-right hidden sm:block">
+              <div id="nav-user-name" class="font-semibold text-slate-200"></div>
+              <div id="nav-user-role" class="text-slate-400"></div>
+            </div>
+            <button onclick="doLogout()" class="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-rose-600/80 text-slate-300 hover:text-white border border-slate-700 flex items-center gap-1 transition">
+              <i data-lucide="log-out" class="w-3.5 h-3.5"></i> Đăng xuất
+            </button>
+          </div>
         </div>
       </div>
     </div>
   </header>
 
   <!-- MAIN CONTENT CONTAINER -->
-  <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+  <main id="app-main" class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 hidden">
 
     <!-- ========================================== -->
     <!-- 1. BUYER DASHBOARD VIEW                    -->
@@ -87,32 +253,43 @@
     <div id="view-Buyer" class="space-y-6">
       <!-- Buyer Top Bar: Search, Category, Cart count -->
       <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-200 flex flex-col md:flex-row gap-4 items-center justify-between">
-        <div class="flex-1 w-full flex flex-col sm:flex-row gap-3">
-          <div class="relative flex-1">
+        <div class="flex-1 w-full flex flex-wrap gap-3 items-center">
+          <div class="relative flex-1 min-w-[220px]">
             <i data-lucide="search" class="w-4 h-4 absolute left-3.5 top-3.5 text-slate-400"></i>
-            <input type="text" id="buyer-search-input" placeholder="Tìm sản phẩm chính hãng..." 
-                   class="w-full pl-10 pr-4 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                   onkeyup="if(event.key==='Enter') loadBuyerProducts()">
+            <input type="text" id="buyer-search-input" autocomplete="off" placeholder="Tìm sản phẩm chính hãng..."
+                   class="w-full pl-10 pr-4 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500">
+            <div id="search-suggestions" class="hidden absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-xl shadow-lg z-30 overflow-hidden"></div>
           </div>
-          <select id="buyer-category-select" onchange="loadBuyerProducts()" 
-                  class="bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+          <select id="buyer-category-select" onchange="loadBuyerProducts()"
+                  class="bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500">
             <option value="ALL">Tất cả danh mục</option>
-            <option value="Điện Tử">Điện Tử - Công Nghệ</option>
-            <option value="Thời Trang">Thời Trang - Đời Sống</option>
           </select>
-          <button onclick="loadBuyerProducts()" class="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-medium transition shadow flex items-center gap-1 justify-center">
+          <div class="flex items-center gap-1.5">
+            <input id="buyer-min-price" type="number" min="0" placeholder="Giá từ"
+                   class="w-24 px-3 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500">
+            <span class="text-slate-400 text-sm">–</span>
+            <input id="buyer-max-price" type="number" min="0" placeholder="đến"
+                   class="w-24 px-3 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500">
+          </div>
+          <select id="buyer-sort" onchange="loadBuyerProducts()"
+                  class="bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500">
+            <option value="distance">Gần nhất</option>
+            <option value="price_asc">Giá tăng dần</option>
+            <option value="price_desc">Giá giảm dần</option>
+          </select>
+          <button onclick="loadBuyerProducts()" class="px-4 py-2.5 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-sm font-medium transition shadow flex items-center gap-1 justify-center">
             <i data-lucide="filter" class="w-4 h-4"></i> Lọc
           </button>
         </div>
 
         <!-- Navigation Tabs: Market vs My Orders -->
         <div class="flex items-center gap-2 w-full md:w-auto justify-end">
-          <button onclick="switchBuyerTab('market')" id="tab-buyer-market" class="px-4 py-2 text-sm font-semibold rounded-xl bg-indigo-50 text-indigo-700 border border-indigo-200">
-            🛍️ Cửa Hàng
+          <button onclick="switchBuyerTab('market')" id="tab-buyer-market" class="px-4 py-2 text-sm font-semibold rounded-xl bg-brand-50 text-brand-700 border border-brand-200">
+            <i data-lucide="store" class="w-4 h-4 inline"></i> Cửa Hàng
           </button>
           <button onclick="switchBuyerTab('orders')" id="tab-buyer-orders" class="px-4 py-2 text-sm font-semibold rounded-xl text-slate-600 hover:bg-slate-100 relative">
-            📦 Đơn Hàng & Xác Thực QR
-            <span id="buyer-orders-badge" class="ml-1 px-2 py-0.5 text-xs rounded-full bg-indigo-600 text-white">0</span>
+            <i data-lucide="package" class="w-4 h-4 inline"></i> Đơn Hàng &amp; Xác Thực QR
+            <span id="buyer-orders-badge" class="ml-1 px-2 py-0.5 text-xs rounded-full bg-brand-600 text-white">0</span>
           </button>
           <button onclick="openCartModal()" class="px-4 py-2 text-sm font-semibold rounded-xl bg-slate-900 text-white hover:bg-slate-800 flex items-center gap-1.5 shadow">
             <i data-lucide="shopping-bag" class="w-4 h-4"></i> Giỏ Hàng (<span id="cart-item-count">0</span>)
@@ -128,7 +305,7 @@
             <span class="text-xs font-normal text-slate-500">(Sắp xếp ưu tiên khoảng cách gần bạn nhất)</span>
           </h2>
           <span class="text-xs text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200 font-medium">
-            🛡️ 100% Ký Quỹ Escrow Tạm Giữ Tiền
+            <i data-lucide="shield-check" class="w-3.5 h-3.5 inline"></i> 100% Ký Quỹ Escrow Tạm Giữ Tiền
           </span>
         </div>
         <div id="buyer-products-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -161,7 +338,7 @@
       <!-- Shop Header Stats -->
       <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
         <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-200 flex items-center gap-4">
-          <div class="w-12 h-12 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600">
+          <div class="w-12 h-12 rounded-xl bg-brand-50 border border-brand-100 flex items-center justify-center text-brand-600">
             <i data-lucide="store" class="w-6 h-6"></i>
           </div>
           <div>
@@ -187,7 +364,7 @@
             <div id="shop-commission-rate" class="text-2xl font-extrabold text-slate-900 mt-1">5%</div>
             <div class="text-[11px] text-slate-400">Khấu trừ tự động khi giải ngân Escrow</div>
           </div>
-          <div class="w-10 h-10 rounded-lg bg-indigo-50 flex items-center justify-center text-indigo-600">
+          <div class="w-10 h-10 rounded-lg bg-brand-50 flex items-center justify-center text-brand-600">
             <i data-lucide="percent" class="w-5 h-5"></i>
           </div>
         </div>
@@ -195,11 +372,11 @@
 
       <!-- Shop Sub-tabs: Orders to Pack vs Products -->
       <div class="flex items-center gap-3 border-b border-slate-200 pb-3">
-        <button onclick="switchShopTab('orders')" id="tab-shop-orders" class="px-4 py-2 font-bold text-sm rounded-xl bg-indigo-600 text-white shadow">
-          📦 Đơn Hàng Cần Xử Lý & Xuất Tem QR
+        <button onclick="switchShopTab('orders')" id="tab-shop-orders" class="px-4 py-2 font-bold text-sm rounded-xl bg-brand-600 text-white shadow">
+          <i data-lucide="package" class="w-4 h-4 inline"></i> Đơn Hàng Cần Xử Lý &amp; Xuất Tem QR
         </button>
         <button onclick="switchShopTab('products')" id="tab-shop-products" class="px-4 py-2 font-semibold text-sm rounded-xl text-slate-600 hover:bg-slate-100">
-          🛍️ Quản Lý Sản Phẩm & Kho
+          <i data-lucide="store" class="w-4 h-4 inline"></i> Quản Lý Sản Phẩm &amp; Kho
         </button>
         <button onclick="openAddProductModal()" class="ml-auto px-3.5 py-2 text-xs font-semibold rounded-xl bg-slate-900 text-white hover:bg-slate-800 flex items-center gap-1.5">
           <i data-lucide="plus" class="w-3.5 h-3.5"></i> Thêm Sản Phẩm Mới
@@ -232,20 +409,28 @@
       <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h2 class="text-lg font-bold text-slate-900 flex items-center gap-2">
-            <i data-lucide="truck" class="w-5 h-5 text-indigo-600"></i>
+            <i data-lucide="truck" class="w-5 h-5 text-brand-600"></i>
             Ứng Dụng Giao Vận (Shipper Dispatch Terminal)
           </h2>
           <p class="text-xs text-slate-500">Thực hiện Handshake 1 tại kho Shop để nhận vận chuyển kiện hàng</p>
         </div>
-        <button onclick="openShipperScannerModal()" class="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-semibold flex items-center gap-2 shadow">
+        <button onclick="openShipperScannerModal()" class="px-4 py-2.5 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-sm font-semibold flex items-center gap-2 shadow">
           <i data-lucide="scan" class="w-4 h-4"></i> Quét QR Nhận Hàng (Handshake 1)
         </button>
+      </div>
+
+      <!-- Status filter tabs -->
+      <div class="flex flex-wrap items-center gap-2">
+        <button onclick="switchShipperFilter('all')" id="shipper-filter-all" class="px-3.5 py-2 text-xs font-bold rounded-xl bg-slate-900 text-white shadow">Tất cả</button>
+        <button onclick="switchShipperFilter('picking')" id="shipper-filter-picking" class="px-3.5 py-2 text-xs font-semibold rounded-xl text-slate-600 hover:bg-slate-100">Đang đi lấy</button>
+        <button onclick="switchShipperFilter('delivering')" id="shipper-filter-delivering" class="px-3.5 py-2 text-xs font-semibold rounded-xl text-slate-600 hover:bg-slate-100">Đang giao</button>
+        <button onclick="switchShipperFilter('delivered')" id="shipper-filter-delivered" class="px-3.5 py-2 text-xs font-semibold rounded-xl text-slate-600 hover:bg-slate-100">Đã giao</button>
       </div>
 
       <!-- Shipper Sub-sections -->
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <!-- Available to Pickup -->
-        <div class="space-y-3">
+        <div id="shipper-col-available" class="space-y-3">
           <div class="flex items-center justify-between">
             <h3 class="font-bold text-slate-900 flex items-center gap-2 text-sm">
               <span class="w-2.5 h-2.5 rounded-full bg-blue-500"></span>
@@ -259,7 +444,7 @@
         </div>
 
         <!-- In-Transit Deliveries -->
-        <div class="space-y-3">
+        <div id="shipper-col-transit" class="space-y-3">
           <div class="flex items-center justify-between">
             <h3 class="font-bold text-slate-900 flex items-center gap-2 text-sm">
               <span class="w-2.5 h-2.5 rounded-full bg-purple-500"></span>
@@ -293,8 +478,8 @@
         </div>
 
         <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
-          <div class="text-xs font-semibold text-indigo-600 uppercase tracking-wider">Tỷ Lệ Giao Hàng An Toàn QR</div>
-          <div id="admin-safe-rate" class="text-2xl font-extrabold text-indigo-600 mt-2">100%</div>
+          <div class="text-xs font-semibold text-brand-600 uppercase tracking-wider">Tỷ Lệ Giao Hàng An Toàn QR</div>
+          <div id="admin-safe-rate" class="text-2xl font-extrabold text-brand-600 mt-2">100%</div>
           <div class="text-[11px] text-slate-400 mt-1">Đã quét QR chống tráo ruột</div>
         </div>
 
@@ -305,16 +490,22 @@
         </div>
       </div>
 
-      <!-- Admin Tabs: Disputes, Fraud Radar, Audit Logs -->
-      <div class="flex items-center gap-3 border-b border-slate-200 pb-3">
-        <button onclick="switchAdminTab('audit')" id="tab-admin-audit" class="px-4 py-2 font-bold text-sm rounded-xl bg-slate-900 text-white shadow">
-          📋 Nhật Ký Kiểm Toán (Immutable Audit Trail)
+      <!-- Admin Tabs -->
+      <div class="flex flex-wrap items-center gap-2 border-b border-slate-200 pb-3">
+        <button onclick="switchAdminTab('audit')" id="tab-admin-audit" class="px-3.5 py-2 font-bold text-sm rounded-xl bg-slate-900 text-white shadow">
+          <i data-lucide="clipboard-list" class="w-4 h-4 inline"></i> Nhật Ký Kiểm Toán
         </button>
-        <button onclick="switchAdminTab('disputes')" id="tab-admin-disputes" class="px-4 py-2 font-semibold text-sm rounded-xl text-slate-600 hover:bg-slate-100">
-          ⚖️ Quản Lý Khiếu Nại & Trọng Tài Escrow
+        <button onclick="switchAdminTab('users')" id="tab-admin-users" class="px-3.5 py-2 font-semibold text-sm rounded-xl text-slate-600 hover:bg-slate-100">
+          <i data-lucide="users" class="w-4 h-4 inline"></i> Người Dùng
         </button>
-        <button onclick="switchAdminTab('fraud')" id="tab-admin-fraud" class="px-4 py-2 font-semibold text-sm rounded-xl text-slate-600 hover:bg-slate-100">
-          🚨 Radar Cảnh Báo Tài Khoản Rủi Ro
+        <button onclick="switchAdminTab('categories')" id="tab-admin-categories" class="px-3.5 py-2 font-semibold text-sm rounded-xl text-slate-600 hover:bg-slate-100">
+          <i data-lucide="tags" class="w-4 h-4 inline"></i> Danh Mục
+        </button>
+        <button onclick="switchAdminTab('disputes')" id="tab-admin-disputes" class="px-3.5 py-2 font-semibold text-sm rounded-xl text-slate-600 hover:bg-slate-100">
+          <i data-lucide="scale" class="w-4 h-4 inline"></i> Khiếu Nại
+        </button>
+        <button onclick="switchAdminTab('fraud')" id="tab-admin-fraud" class="px-3.5 py-2 font-semibold text-sm rounded-xl text-slate-600 hover:bg-slate-100">
+          <i data-lucide="alert-octagon" class="w-4 h-4 inline"></i> Radar Gian Lận
         </button>
       </div>
 
@@ -359,6 +550,46 @@
           <!-- Dynamically populated -->
         </div>
       </div>
+
+      <!-- Admin Tab: Users -->
+      <div id="admin-tab-users" class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm space-y-4 hidden">
+        <div class="flex items-center justify-between">
+          <h3 class="font-bold text-slate-900 text-sm">Quản Lý Người Dùng (<span id="admin-users-count">0</span>)</h3>
+          <button onclick="loadAdminUsers()" class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 flex items-center gap-1">
+            <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> Làm mới
+          </button>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs">
+            <thead class="bg-slate-50 text-slate-600 uppercase border-y border-slate-200">
+              <tr>
+                <th class="py-3 px-3">ID</th>
+                <th class="py-3 px-3">Họ tên</th>
+                <th class="py-3 px-3">Email</th>
+                <th class="py-3 px-3">Vai trò</th>
+                <th class="py-3 px-3">Fraud</th>
+                <th class="py-3 px-3">Tham gia</th>
+              </tr>
+            </thead>
+            <tbody id="admin-users-table" class="divide-y divide-slate-100">
+              <!-- Dynamically populated -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Admin Tab: Categories -->
+      <div id="admin-tab-categories" class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm space-y-4 hidden">
+        <div class="flex items-center justify-between">
+          <h3 class="font-bold text-slate-900 text-sm">Quản Lý Danh Mục Sản Phẩm</h3>
+          <button onclick="openCategoryModal()" class="px-3.5 py-2 text-xs font-bold rounded-xl bg-brand-600 hover:bg-brand-500 text-white flex items-center gap-1.5 shadow">
+            <i data-lucide="plus" class="w-3.5 h-3.5"></i> Thêm danh mục
+          </button>
+        </div>
+        <div id="admin-categories-list" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <!-- Dynamically populated -->
+        </div>
+      </div>
     </div>
 
   </main>
@@ -372,10 +603,10 @@
     <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
       <div class="flex items-center justify-between border-b pb-3">
         <h3 class="font-bold text-slate-900 flex items-center gap-2">
-          <i data-lucide="shopping-cart" class="w-5 h-5 text-indigo-600"></i>
+          <i data-lucide="shopping-cart" class="w-5 h-5 text-brand-600"></i>
           Giỏ Hàng Đa Gian Hàng
         </h3>
-        <button onclick="closeCartModal()" class="text-slate-400 hover:text-slate-600">✕</button>
+        <button onclick="closeCartModal()" class="text-slate-400 hover:text-slate-600"><i data-lucide="x" class="w-4 h-4"></i></button>
       </div>
 
       <div id="cart-items-container" class="space-y-3 divide-y divide-slate-100">
@@ -393,7 +624,7 @@
         </div>
         <div class="border-t pt-2 flex justify-between font-bold text-sm text-slate-900">
           <span>Tổng thanh toán tạm tính:</span>
-          <span id="cart-total-amount" class="text-indigo-600">0 đ</span>
+          <span id="cart-total-amount" class="text-brand-600">0 đ</span>
         </div>
       </div>
 
@@ -401,17 +632,17 @@
       <div class="space-y-3 text-xs">
         <div>
           <label class="font-semibold text-slate-700 block mb-1">Địa chỉ giao hàng (Sẽ được che bảo mật trên tem):</label>
-          <input type="text" id="checkout-address" value="Số 45 Ngõ 123 Đường Cầu Giấy, Phường Quan Hoa, Hà Nội"
-                 class="w-full p-2.5 bg-slate-50 border rounded-xl focus:ring-2 focus:ring-indigo-500">
+          <input type="text" id="checkout-address" placeholder="Số nhà, đường, quận/huyện, tỉnh/thành"
+                 class="w-full p-2.5 bg-slate-50 border rounded-xl focus:ring-2 focus:ring-brand-500">
         </div>
         <div>
-          <label class="font-semibold text-slate-700 block mb-1">Số điện thoại nhận hàng (Che 091****005):</label>
-          <input type="text" id="checkout-phone" value="0912345678"
-                 class="w-full p-2.5 bg-slate-50 border rounded-xl focus:ring-2 focus:ring-indigo-500">
+          <label class="font-semibold text-slate-700 block mb-1">Số điện thoại nhận hàng (sẽ được che bảo mật trên tem):</label>
+          <input type="text" id="checkout-phone" placeholder="VD: 0912345678"
+                 class="w-full p-2.5 bg-slate-50 border rounded-xl focus:ring-2 focus:ring-brand-500">
         </div>
         <div>
           <label class="font-semibold text-slate-700 block mb-1">Hình thức thanh toán Ký Quỹ Escrow:</label>
-          <select id="checkout-payment-method" class="w-full p-2.5 bg-slate-50 border rounded-xl">
+          <select id="checkout-payment-method" onchange="onPaymentMethodChange(this.value)" class="w-full p-2.5 bg-slate-50 border rounded-xl">
             <option value="WALLET_ESCROW">Ví Điện Tử Ký Quỹ (Tạm giữ tiền trên sàn đến khi quét QR)</option>
             <option value="VNPAY_ESCROW">VNPAY Escrow Tạm Giữ</option>
             <option value="MOMO_ESCROW">Momo Escrow Tạm Giữ</option>
@@ -422,7 +653,7 @@
 
       <div class="pt-3 border-t flex justify-end gap-2">
         <button onclick="closeCartModal()" class="px-4 py-2 text-xs font-semibold rounded-xl text-slate-600 hover:bg-slate-100">Đóng</button>
-        <button onclick="submitCheckout()" class="px-5 py-2.5 text-xs font-bold rounded-xl bg-indigo-600 text-white hover:bg-indigo-700 shadow flex items-center gap-1.5">
+        <button onclick="submitCheckout()" class="px-5 py-2.5 text-xs font-bold rounded-xl bg-brand-600 text-white hover:bg-brand-700 shadow flex items-center gap-1.5">
           <i data-lucide="lock" class="w-3.5 h-3.5"></i> Xác Nhận Đặt Hàng & Khóa Ký Quỹ
         </button>
       </div>
@@ -434,10 +665,10 @@
     <div class="bg-white rounded-2xl max-w-xl w-full p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
       <div class="flex items-center justify-between border-b pb-3">
         <h3 class="font-bold text-slate-900 flex items-center gap-2">
-          <i data-lucide="printer" class="w-5 h-5 text-indigo-600"></i>
+          <i data-lucide="printer" class="w-5 h-5 text-brand-600"></i>
           Vận Đơn & Tem Niêm Phong QR Bảo Mật
         </h3>
-        <button onclick="closeWaybillModal()" class="text-slate-400 hover:text-slate-600">✕</button>
+        <button onclick="closeWaybillModal()" class="text-slate-400 hover:text-slate-600"><i data-lucide="x" class="w-4 h-4"></i></button>
       </div>
 
       <!-- Printable area -->
@@ -461,10 +692,10 @@
           <div class="space-y-1 bg-slate-50 p-2 rounded-lg border border-slate-200">
             <div class="font-bold text-[10px] text-slate-400 uppercase flex items-center gap-1">
               <span>NGƯỜI NHẬN</span>
-              <span class="text-emerald-600 font-semibold text-[9px]">🔒 Đã Che Quyền Riêng Tư</span>
+              <span class="text-emerald-600 font-semibold text-[9px]">              <i data-lucide="lock" class="w-3 h-3 inline"></i> Đã Che Quyền Riêng Tư</span>
             </div>
             <div id="wb-buyer-name" class="font-bold">Khách Hàng</div>
-            <div id="wb-buyer-phone" class="font-mono text-indigo-600 font-semibold">091****005</div>
+            <div id="wb-buyer-phone" class="font-mono text-brand-600 font-semibold">091****005</div>
             <div id="wb-buyer-addr" class="text-slate-600 text-[11px]">Số **, Đ. Cầu Giấy, Hà Nội</div>
           </div>
         </div>
@@ -485,7 +716,7 @@
         </div>
 
         <div class="flex justify-between items-center pt-1 text-[11px] font-bold">
-          <div>Thu Tiền Ký Quỹ: <span id="wb-amount" class="text-indigo-600">0 đ</span></div>
+          <div>Thu Tiền Ký Quỹ: <span id="wb-amount" class="text-brand-600">0 đ</span></div>
           <div id="wb-payment-method" class="text-slate-600 uppercase font-mono">WALLET_ESCROW</div>
         </div>
       </div>
@@ -504,10 +735,10 @@
     <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
       <div class="flex items-center justify-between border-b pb-3">
         <h3 id="scanner-title" class="font-bold text-slate-900 flex items-center gap-2">
-          <i data-lucide="camera" class="w-5 h-5 text-indigo-600"></i>
+          <i data-lucide="camera" class="w-5 h-5 text-brand-600"></i>
           Quét Mã QR Xác Thực
         </h3>
-        <button onclick="closeScannerModal()" class="text-slate-400 hover:text-slate-600">✕</button>
+        <button onclick="closeScannerModal()" class="text-slate-400 hover:text-slate-600"><i data-lucide="x" class="w-4 h-4"></i></button>
       </div>
 
       <!-- Live WebCam Reader Viewport -->
@@ -522,12 +753,12 @@
       <div class="space-y-2 pt-2 border-t text-xs">
         <div class="flex items-center justify-between text-slate-600">
           <span class="font-medium">Hoặc dán Token / Mã test nhanh:</span>
-          <button onclick="fillSampleQRToken()" class="text-indigo-600 hover:underline font-semibold text-[11px]">
-            ⚡ Điền mã đơn hàng test
+          <button onclick="fillSampleQRToken()" class="text-brand-600 hover:underline font-semibold text-[11px]">
+            Điền mã đơn hàng test
           </button>
         </div>
         <div class="flex gap-2">
-          <input type="text" id="manual-qr-input" placeholder="Dán chuỗi token từ QR hoặc bấm '⚡ Điền mã đơn hàng test'..."
+          <input type="text" id="manual-qr-input" placeholder="Dán chuỗi token từ QR hoặc bấm 'Điền mã đơn hàng test'..."
                  class="flex-1 p-2 bg-slate-50 border rounded-xl text-xs font-mono">
           <button onclick="submitManualQRToken()" class="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-semibold text-xs whitespace-nowrap">
             Xác Thực
@@ -549,18 +780,18 @@
           <i data-lucide="star" class="w-5 h-5 text-amber-500"></i>
           Đánh Giá Sản Phẩm (Đã Xác Thực)
         </h3>
-        <button onclick="closeReviewModal()" class="text-slate-400 hover:text-slate-600">✕</button>
+        <button onclick="closeReviewModal()" class="text-slate-400 hover:text-slate-600"><i data-lucide="x" class="w-4 h-4"></i></button>
       </div>
 
       <div class="space-y-3 text-xs">
         <div>
           <label class="font-semibold text-slate-700 block mb-1">Mức độ hài lòng:</label>
           <select id="review-rating" class="w-full p-2.5 bg-slate-50 border rounded-xl font-semibold">
-            <option value="5">⭐⭐⭐⭐⭐ 5 Sao - Hàng chính hãng hoàn hảo, nguyên tem</option>
-            <option value="4">⭐⭐⭐⭐ 4 Sao - Rất tốt</option>
-            <option value="3">⭐⭐⭐ 3 Sao - Bình thường</option>
-            <option value="2">⭐⭐ 2 Sao - Chưa hài lòng</option>
-            <option value="1">⭐ 1 Sao - Rất thất vọng</option>
+            <option value="5">5 Sao - Hàng chính hãng hoàn hảo, nguyên tem</option>
+            <option value="4">4 Sao - Rất tốt</option>
+            <option value="3">3 Sao - Bình thường</option>
+            <option value="2">2 Sao - Chưa hài lòng</option>
+            <option value="1">1 Sao - Rất thất vọng</option>
           </select>
         </div>
         <div>
@@ -587,7 +818,7 @@
           <i data-lucide="alert-triangle" class="w-5 h-5 text-rose-600"></i>
           Khiếu Nại Kiện Hàng & Đóng Băng Ký Quỹ
         </h3>
-        <button onclick="closeDisputeModal()" class="text-slate-400 hover:text-slate-600">✕</button>
+        <button onclick="closeDisputeModal()" class="text-slate-400 hover:text-slate-600"><i data-lucide="x" class="w-4 h-4"></i></button>
       </div>
 
       <div class="space-y-3 text-xs">
@@ -606,7 +837,7 @@
                     class="w-full p-2.5 bg-slate-50 border rounded-xl"></textarea>
         </div>
         <p class="text-[11px] text-rose-500 bg-rose-50 p-2 rounded-lg border border-rose-200">
-          ⚠️ Lưu ý: Khi nộp khiếu nại, tiền ký quỹ Escrow sẽ lập tức bị ĐÓNG BĂNG để bảo vệ tiền của bạn. Tài khoản liên quan sẽ bị ghi điểm rủi ro.
+          <i data-lucide="alert-triangle" class="w-3.5 h-3.5 inline text-rose-500"></i> Lưu ý: Khi nộp khiếu nại, tiền ký quỹ Escrow sẽ lập tức bị ĐÓNG BĂNG để bảo vệ tiền của bạn. Tài khoản liên quan sẽ bị ghi điểm rủi ro.
         </p>
       </div>
 
@@ -624,10 +855,10 @@
     <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
       <div class="flex items-center justify-between border-b pb-3">
         <h3 class="font-bold text-slate-900 flex items-center gap-2">
-          <i data-lucide="plus-circle" class="w-5 h-5 text-indigo-600"></i>
+          <i data-lucide="plus-circle" class="w-5 h-5 text-brand-600"></i>
           Đăng Bán Sản Phẩm Mới
         </h3>
-        <button onclick="closeAddProductModal()" class="text-slate-400 hover:text-slate-600">✕</button>
+        <button onclick="closeAddProductModal()" class="text-slate-400 hover:text-slate-600"><i data-lucide="x" class="w-4 h-4"></i></button>
       </div>
 
       <div class="space-y-3 text-xs">
@@ -648,8 +879,7 @@
         <div>
           <label class="font-semibold text-slate-700 block mb-1">Danh mục:</label>
           <select id="prod-category" class="w-full p-2.5 bg-slate-50 border rounded-xl">
-            <option value="Điện Tử">Điện Tử</option>
-            <option value="Thời Trang">Thời Trang</option>
+            <!-- populated from /api/categories -->
           </select>
         </div>
         <div>
@@ -660,17 +890,65 @@
 
       <div class="pt-3 border-t flex justify-end gap-2">
         <button onclick="closeAddProductModal()" class="px-4 py-2 text-xs font-semibold rounded-xl text-slate-600 hover:bg-slate-100">Đóng</button>
-        <button onclick="submitCreateProduct()" class="px-5 py-2.5 text-xs font-bold rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white shadow">
+        <button onclick="submitCreateProduct()" class="px-5 py-2.5 text-xs font-bold rounded-xl bg-brand-600 hover:bg-brand-700 text-white shadow">
           Lưu Sản Phẩm
         </button>
       </div>
     </div>
   </div>
 
+  <!-- 7. Category Modal (Admin) -->
+  <div id="category-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
+      <div class="flex items-center justify-between border-b pb-3">
+        <h3 class="font-bold text-slate-900 flex items-center gap-2">
+          <i data-lucide="tags" class="w-5 h-5 text-brand-600"></i>
+          <span id="category-modal-title">Thêm danh mục</span>
+        </h3>
+        <button onclick="closeCategoryModal()" class="text-slate-400 hover:text-slate-600"><i data-lucide="x" class="w-4 h-4"></i></button>
+      </div>
+      <div class="space-y-3 text-xs">
+        <input type="hidden" id="category-id">
+        <div>
+          <label class="font-semibold text-slate-700 block mb-1">Tên danh mục:</label>
+          <input type="text" id="category-name" placeholder="VD: Đồ gia dụng" class="w-full p-2.5 bg-slate-50 border rounded-xl">
+        </div>
+        <div>
+          <label class="font-semibold text-slate-700 block mb-1">Mô tả:</label>
+          <textarea id="category-desc" rows="2" placeholder="Mô tả ngắn về danh mục..." class="w-full p-2.5 bg-slate-50 border rounded-xl"></textarea>
+        </div>
+        <label class="flex items-center gap-2 font-medium text-slate-700">
+          <input type="checkbox" id="category-active" checked class="rounded"> Đang hoạt động (hiển thị cho người mua)
+        </label>
+      </div>
+      <div class="pt-3 border-t flex justify-end gap-2">
+        <button onclick="closeCategoryModal()" class="px-4 py-2 text-xs font-semibold rounded-xl text-slate-600 hover:bg-slate-100">Đóng</button>
+        <button onclick="submitCategory()" class="px-5 py-2.5 text-xs font-bold rounded-xl bg-brand-600 hover:bg-brand-500 text-white shadow">Lưu danh mục</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 8. COD Warning Modal -->
+  <div id="cod-warning-modal" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-[60] hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl space-y-4 text-center">
+      <div class="mx-auto w-14 h-14 rounded-full bg-amber-100 flex items-center justify-center">
+        <i data-lucide="alert-triangle" class="w-7 h-7 text-amber-600"></i>
+      </div>
+      <h3 class="text-base font-extrabold text-slate-900">Quét tem trước khi trả tiền COD</h3>
+      <p class="text-sm text-slate-600 leading-relaxed">
+        Bạn đang chọn thanh toán <b>COD</b>. Vui lòng <b>quét mã QR trên tem niêm phong</b> để xác thực hàng chính hãng
+        <b>trước khi</b> đưa tiền cho shipper. Tiền ký quỹ chỉ được giải ngân sau khi tem hợp lệ.
+      </p>
+      <button onclick="closeCodWarning()" class="w-full py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-sm">
+        Tôi đã hiểu
+      </button>
+    </div>
+  </div>
+
   <!-- Toast Notification Container -->
   <div id="toast" class="fixed bottom-5 right-5 z-50 transform translate-y-20 opacity-0 transition-all duration-300 pointer-events-none">
     <div id="toast-inner" class="bg-slate-900 text-white px-5 py-3 rounded-2xl shadow-2xl border border-slate-700 flex items-center gap-3 text-xs font-medium">
-      <span id="toast-icon">ℹ️</span>
+      <i id="toast-icon" data-lucide="info" class="w-4 h-4"></i>
       <span id="toast-msg">Thông báo</span>
     </div>
   </div>
