@@ -10,16 +10,33 @@ from app.modules.discovery.privacy import mask_phone_number, mask_street_address
 
 router = APIRouter(prefix="/api/discovery", tags=["Module 7: Discovery & Privacy Masking"])
 
+
+@router.get("/autocomplete")
+def autocomplete_suggestions(
+        q: str = Query(..., min_length=1, description="Từ khóa gợi ý"),
+        db: Session = Depends(get_db)
+):
+    """
+    Bổ sung theo yêu cầu Module 7: Trả về danh sách gợi ý tên sản phẩm (Autocomplete)
+    """
+    products = db.query(Product.name, Product.category).filter(
+        Product.name.ilike(f"%{q}%")
+    ).limit(8).all()
+
+    suggestions = [{"name": p.name, "category": p.category} for p in products]
+    return {"suggestions": suggestions}
+
+
 @router.get("/products", response_model=List[ProductResponse])
 def search_and_discover_products(
-    q: Optional[str] = Query(None, description="Search keyword"),
-    category: Optional[str] = Query(None, description="Category filter"),
-    min_price: Optional[float] = Query(None, description="Min price"),
-    max_price: Optional[float] = Query(None, description="Max price"),
-    buyer_lat: Optional[float] = Query(None, description="Buyer latitude for geo-sorting"),
-    buyer_lon: Optional[float] = Query(None, description="Buyer longitude for geo-sorting"),
-    sort_by: Optional[str] = Query("distance", description="distance, price_asc, price_desc"),
-    db: Session = Depends(get_db)
+        q: Optional[str] = Query(None, description="Search keyword"),
+        category: Optional[str] = Query(None, description="Category filter"),
+        min_price: Optional[float] = Query(None, description="Min price"),
+        max_price: Optional[float] = Query(None, description="Max price"),
+        buyer_lat: Optional[float] = Query(None, description="Buyer latitude for geo-sorting"),
+        buyer_lon: Optional[float] = Query(None, description="Buyer longitude for geo-sorting"),
+        sort_by: Optional[str] = Query("distance", description="distance, price_asc, price_desc"),
+        db: Session = Depends(get_db)
 ):
     query = db.query(Product).join(Shop, Product.shop_id == Shop.id)
 
@@ -68,6 +85,7 @@ def search_and_discover_products(
         results.sort(key=lambda x: x.price, reverse=True)
 
     return results
+
 
 @router.get("/waybill/{order_id}")
 def generate_privacy_waybill(order_id: int, db: Session = Depends(get_db)):

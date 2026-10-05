@@ -1,5 +1,6 @@
 import re
 
+
 def mask_phone_number(phone: str) -> str:
     """
     Masks a phone number: e.g., '0912345005' -> '091****005'
@@ -15,6 +16,7 @@ def mask_phone_number(phone: str) -> str:
         return f"{prefix}{masked_middle}{suffix}"
     return clean[:2] + "****" + clean[-2:]
 
+
 def mask_street_address(address: str) -> str:
     """
     Partially redacts detailed street address to protect personal residence privacy.
@@ -23,12 +25,12 @@ def mask_street_address(address: str) -> str:
     """
     if not address:
         return "N/A"
-    
+
     parts = [p.strip() for p in address.split(",")]
     if len(parts) > 1:
         # Mask specific house number in the first segment
         first_segment = re.sub(r"\d+", lambda m: "*" * len(m.group()), parts[0])
         return ", ".join([first_segment] + parts[1:])
-    
+
     # Fallback masking
     return re.sub(r"\d+", "***", address)

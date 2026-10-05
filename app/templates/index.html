@@ -85,38 +85,65 @@
     <!-- 1. BUYER DASHBOARD VIEW                    -->
     <!-- ========================================== -->
     <div id="view-Buyer" class="space-y-6">
-      <!-- Buyer Top Bar: Search, Category, Cart count -->
-      <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-200 flex flex-col md:flex-row gap-4 items-center justify-between">
+      <!-- Buyer Top Bar: Search, Category, Price Filter, Cart count -->
+      <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-200 flex flex-col gap-4">
         <div class="flex-1 w-full flex flex-col sm:flex-row gap-3">
+          <!-- Ô Tìm Kiếm kèm Dropdown Autocomplete -->
           <div class="relative flex-1">
             <i data-lucide="search" class="w-4 h-4 absolute left-3.5 top-3.5 text-slate-400"></i>
-            <input type="text" id="buyer-search-input" placeholder="Tìm sản phẩm chính hãng..." 
+            <input type="text" id="buyer-search-input" placeholder="Tìm sản phẩm chính hãng..."
                    class="w-full pl-10 pr-4 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                   oninput="handleSearchAutocomplete(event)"
                    onkeyup="if(event.key==='Enter') loadBuyerProducts()">
+
+            <!-- Dropdown chứa kết quả Autocomplete -->
+            <div id="autocomplete-dropdown" class="absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-xl shadow-lg z-50 hidden max-h-60 overflow-y-auto">
+              <!-- JS sẽ tự động bơm danh sách gợi ý vào đây -->
+            </div>
           </div>
-          <select id="buyer-category-select" onchange="loadBuyerProducts()" 
+
+          <!-- Bộ lọc Danh Mục -->
+          <select id="buyer-category-select" onchange="loadBuyerProducts()"
                   class="bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
             <option value="ALL">Tất cả danh mục</option>
             <option value="Điện Tử">Điện Tử - Công Nghệ</option>
             <option value="Thời Trang">Thời Trang - Đời Sống</option>
           </select>
-          <button onclick="loadBuyerProducts()" class="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-medium transition shadow flex items-center gap-1 justify-center">
-            <i data-lucide="filter" class="w-4 h-4"></i> Lọc
-          </button>
+
+          <!-- Bộ lọc Sắp Xếp -->
+          <select id="buyer-sort-select" onchange="loadBuyerProducts()"
+                  class="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            <option value="distance">Gần tôi nhất</option>
+            <option value="price_asc">Giá: Thấp đến Cao</option>
+            <option value="price_desc">Giá: Cao đến Thấp</option>
+          </select>
         </div>
 
-        <!-- Navigation Tabs: Market vs My Orders -->
-        <div class="flex items-center gap-2 w-full md:w-auto justify-end">
-          <button onclick="switchBuyerTab('market')" id="tab-buyer-market" class="px-4 py-2 text-sm font-semibold rounded-xl bg-indigo-50 text-indigo-700 border border-indigo-200">
-            🛍️ Cửa Hàng
-          </button>
-          <button onclick="switchBuyerTab('orders')" id="tab-buyer-orders" class="px-4 py-2 text-sm font-semibold rounded-xl text-slate-600 hover:bg-slate-100 relative">
-            📦 Đơn Hàng & Xác Thực QR
-            <span id="buyer-orders-badge" class="ml-1 px-2 py-0.5 text-xs rounded-full bg-indigo-600 text-white">0</span>
-          </button>
-          <button onclick="openCartModal()" class="px-4 py-2 text-sm font-semibold rounded-xl bg-slate-900 text-white hover:bg-slate-800 flex items-center gap-1.5 shadow">
-            <i data-lucide="shopping-bag" class="w-4 h-4"></i> Giỏ Hàng (<span id="cart-item-count">0</span>)
-          </button>
+        <!-- Khối Lọc Khoảng Giá Min - Max -->
+        <div class="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2 border-t border-slate-100">
+          <div class="flex items-center gap-2 w-full sm:w-auto">
+            <span class="text-xs font-semibold text-slate-500">Khoảng giá (VNĐ):</span>
+            <input type="number" id="buyer-min-price" placeholder="Từ" class="w-28 px-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg">
+            <span class="text-xs text-slate-400">-</span>
+            <input type="number" id="buyer-max-price" placeholder="Đến" class="w-28 px-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg">
+            <button onclick="loadBuyerProducts()" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-medium shadow">
+              Lọc Giá
+            </button>
+          </div>
+
+          <!-- Navigation Tabs -->
+          <div class="flex items-center gap-2 w-full sm:w-auto justify-end">
+            <button onclick="switchBuyerTab('market')" id="tab-buyer-market" class="px-4 py-2 text-sm font-semibold rounded-xl bg-indigo-50 text-indigo-700 border border-indigo-200">
+              🛍️ Cửa Hàng
+            </button>
+            <button onclick="switchBuyerTab('orders')" id="tab-buyer-orders" class="px-4 py-2 text-sm font-semibold rounded-xl text-slate-600 hover:bg-slate-100 relative">
+              📦 Đơn Hàng & Xác Thực QR
+              <span id="buyer-orders-badge" class="ml-1 px-2 py-0.5 text-xs rounded-full bg-indigo-600 text-white">0</span>
+            </button>
+            <button onclick="openCartModal()" class="px-4 py-2 text-sm font-semibold rounded-xl bg-slate-900 text-white hover:bg-slate-800 flex items-center gap-1.5 shadow">
+              <i data-lucide="shopping-bag" class="w-4 h-4"></i> Giỏ Hàng (<span id="cart-item-count">0</span>)
+            </button>
+          </div>
         </div>
       </div>
 
@@ -677,5 +704,112 @@
 
   <!-- Main JavaScript App Logic -->
   <script src="/static/js/app.js"></script>
+
+<!-- Script bổ sung cho Module 7: Autocomplete Debounce & Query Lọc giá -->
+  <script>
+    let debounceTimer = null;
+
+    // Kỹ thuật Debounce (Chờ 350ms sau khi ngừng gõ mới gọi API)
+    function handleSearchAutocomplete(event) {
+      const keyword = event.target.value.trim();
+      const dropdown = document.getElementById("autocomplete-dropdown");
+
+      clearTimeout(debounceTimer);
+
+      if (!keyword) {
+        dropdown.classList.add("hidden");
+        return;
+      }
+
+      debounceTimer = setTimeout(async () => {
+        try {
+          const res = await fetch(`/api/discovery/autocomplete?q=${encodeURIComponent(keyword)}`);
+          const data = await res.json();
+
+          if (data.suggestions && data.suggestions.length > 0) {
+            dropdown.innerHTML = data.suggestions.map(item => `
+              <div class="px-4 py-2 hover:bg-indigo-50 cursor-pointer text-xs flex justify-between items-center"
+                   onclick="selectAutocompleteSuggestion('${item.name.replace(/'/g, "\\'")}')">
+                <span class="font-medium text-slate-800">${item.name}</span>
+                <span class="text-[10px] text-slate-400 bg-slate-100 px-2 py-0.5 rounded">${item.category}</span>
+              </div>
+            `).join('');
+            dropdown.classList.remove("hidden");
+          } else {
+            dropdown.classList.add("hidden");
+          }
+        } catch (err) {
+          console.error("Lỗi Autocomplete:", err);
+        }
+      }, 350); // Debounce 350ms
+    }
+
+    function selectAutocompleteSuggestion(value) {
+      const input = document.getElementById("buyer-search-input");
+      input.value = value;
+      document.getElementById("autocomplete-dropdown").classList.add("hidden");
+      loadBuyerProducts(); // Load lại sản phẩm theo từ khóa chọn
+    }
+
+    // Cập nhật hàm loadBuyerProducts gửi kèm min_price, max_price và sort_by
+    async function loadBuyerProducts() {
+  const q = document.getElementById("buyer-search-input")?.value || "";
+  const category = document.getElementById("buyer-category-select")?.value || "ALL";
+  const sortBy = document.getElementById("buyer-sort-select")?.value || "distance";
+  const minPrice = document.getElementById("buyer-min-price")?.value || "";
+  const maxPrice = document.getElementById("buyer-max-price")?.value || "";
+
+  let url = `/api/discovery/products?q=${encodeURIComponent(q)}&category=${encodeURIComponent(category)}&sort_by=${sortBy}`;
+  if (minPrice) url += `&min_price=${minPrice}`;
+  if (maxPrice) url += `&max_price=${maxPrice}`;
+
+  // Tọa độ Hà Nội mặc định để tính khoảng cách
+  url += `&buyer_lat=21.0285&buyer_lon=105.8542`;
+
+  try {
+    const res = await fetch(url);
+    const products = await res.json();
+
+    // VẼ SẢN PHẨM LÊN GIAO DIỆN
+    const container = document.getElementById("buyer-products-grid");
+    if (!container) return;
+
+    if (products.length === 0) {
+      container.innerHTML = `<div class="col-span-full text-center py-8 text-slate-400">Không tìm thấy sản phẩm nào phù hợp</div>`;
+      return;
+    }
+
+    container.innerHTML = products.map(p => `
+      <div class="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm hover:shadow-md transition flex flex-col justify-between">
+        <div class="p-4 space-y-3">
+          <div class="h-40 bg-slate-100 rounded-xl overflow-hidden relative">
+            <img src="${p.images || 'https://via.placeholder.com/300'}" class="w-full h-full object-cover" alt="${p.name}">
+            <span class="absolute top-2 right-2 text-[10px] font-bold bg-slate-900/80 text-white px-2 py-0.5 rounded-full">${p.category}</span>
+            ${p.distance_km !== null ? `<span class="absolute bottom-2 left-2 text-[10px] font-semibold bg-indigo-600 text-white px-2 py-0.5 rounded-full">📍 Cách bạn: ${p.distance_km.toFixed(2)} km</span>` : ''}
+          </div>
+          <div>
+            <div class="text-xs text-slate-400 flex items-center gap-1">🏪 ${p.shop_name}</div>
+            <h3 class="font-bold text-slate-900 text-sm line-clamp-2 mt-1">${p.name}</h3>
+            <p class="text-xs text-slate-500 line-clamp-2 mt-1">${p.description || ''}</p>
+          </div>
+        </div>
+        <div class="p-4 pt-0 border-t border-slate-50 flex items-center justify-between mt-auto">
+          <div>
+            <span class="text-[10px] text-slate-400 block">GIÁ NIÊM YẾT</span>
+            <span class="font-extrabold text-indigo-600 text-base">${p.price.toLocaleString('vi-VN')} đ</span>
+          </div>
+          <button onclick="addToCart(${p.id}, '${p.name.replace(/'/g, "\\'")}', ${p.price})"
+                  class="px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-semibold flex items-center gap-1 shadow">
+            🛒 Thêm vào giỏ
+          </button>
+        </div>
+      </div>
+    `).join('');
+
+  } catch (err) {
+    console.error("Lỗi tải sản phẩm:", err);
+  }
+}
+  </script>
 </body>
 </html>

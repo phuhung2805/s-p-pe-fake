@@ -21,8 +21,9 @@ const ROLE_ACCOUNTS = {
 };
 
 // ----------------- Initialization & Role Switching -----------------
-document.addEventListener('DOMContentLoaded', async () => {
-  if (window.lucide) lucide.createIcons();
+document.addEventListener("DOMContentLoaded", () => {
+  loadBuyerProducts(); // Tự động tải sản phẩm khi vừa vào trang
+});
   
   // Try loading saved cart
   const savedCart = localStorage.getItem('escrow_cart');
