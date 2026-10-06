@@ -1,0 +1,8 @@
+{
+  "name": "cart-module",
+  "version": "1.0.0",
+  "description": "Module 5 - Giỏ hàng & Tách đơn (đa gian hàng)",
+  "main": "server.js",
+  "scripts": { "start": "node server.js", "seed": "node db.js --reset" },
+  "dependencies": { "better-sqlite3": "^11.3.0", "express": "^4.19.2" }
+}

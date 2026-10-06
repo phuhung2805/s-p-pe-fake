@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Giỏ hàng & Đơn hàng</title>
+<style>
+:root{--bg:#f3f5f2;--card:#fff;--ink:#1c2a24;--mute:#68766f;--line:#dfe5e0;--accent:#1f6f5c;--warn:#b4492b;--ok:#2e7d4f}
+@media (prefers-color-scheme:dark){:root{--bg:#121816;--card:#1b2420;--ink:#e6eee9;--mute:#93a39b;--line:#2c3933;--accent:#4fb89d;--warn:#e07a5a;--ok:#5ec489}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 "Segoe UI",system-ui,sans-serif}
+header{display:flex;gap:8px;align-items:center;padding:14px 20px;border-bottom:1px solid var(--line);background:var(--card);position:sticky;top:0;z-index:2}
+header h1{font-size:18px;margin:0 auto 0 0}
+.tab{border:1px solid var(--line);background:none;color:var(--ink);padding:6px 14px;border-radius:6px;cursor:pointer;font:inherit}
+.tab.on{background:var(--accent);border-color:var(--accent);color:#fff}
+main{max-width:980px;margin:0 auto;padding:18px;display:grid;gap:14px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:8px}
+.shop-h{display:flex;gap:10px;align-items:center;padding:10px 14px;border-bottom:1px solid var(--line);font-weight:600}
+.row{display:grid;grid-template-columns:24px 1fr 110px 120px 28px;gap:10px;align-items:center;padding:10px 14px;border-bottom:1px solid var(--line)}
+.row.off{opacity:.55}
+.row small{color:var(--warn)}
+.qty{display:flex;align-items:center;gap:4px}
+.qty button{width:26px;height:26px;border:1px solid var(--line);background:none;color:var(--ink);border-radius:4px;cursor:pointer}
+.money{text-align:right;font-variant-numeric:tabular-nums}
+.shop-sum{padding:10px 14px;display:grid;gap:2px;font-size:14px;color:var(--mute)}
+.shop-sum div,.grand div{display:flex;justify-content:space-between}
+.shop-sum .t{color:var(--ink);font-weight:600}
+.grand{padding:14px;display:grid;gap:6px}
+.grand .g{font-size:20px;font-weight:700}
+.btn{background:var(--accent);color:#fff;border:0;border-radius:6px;padding:10px 18px;font:inherit;font-weight:600;cursor:pointer}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.btn.sm{padding:4px 10px;font-size:13px}
+.x{border:0;background:none;color:var(--mute);cursor:pointer;font-size:18px}
+input[type=checkbox]{width:18px;height:18px;accent-color:var(--accent)}
+input[type=text],select,textarea{font:inherit;padding:7px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--ink)}
+.msg{padding:10px 14px;border-radius:6px;background:var(--card);border-left:4px solid var(--accent)}
+.msg.err{border-color:var(--warn)}
+.badge{padding:2px 10px;border-radius:99px;background:var(--bg);border:1px solid var(--line);font-size:13px}
+.ord-h{display:flex;gap:10px;align-items:center;padding:12px 14px;cursor:pointer;flex-wrap:wrap}
+.ord-h .sp{margin-left:auto}
+.detail{padding:0 14px 14px;display:grid;gap:12px}
+.tl{list-style:none;margin:0;padding:0 0 0 18px;border-left:2px solid var(--line)}
+.tl li{position:relative;padding:0 0 14px 14px}
+.tl li::before{content:"";position:absolute;left:-24px;top:5px;width:10px;height:10px;border-radius:50%;background:var(--line)}
+.tl li:first-child::before{background:var(--accent);box-shadow:0 0 0 4px color-mix(in srgb,var(--accent) 25%,transparent)}
+.tl .when{color:var(--mute);font-size:13px}
+.acts{display:flex;gap:6px;flex-wrap:wrap}
+.empty{padding:30px;text-align:center;color:var(--mute)}
+@media(max-width:640px){.row{grid-template-columns:24px 1fr 28px}.row .qty,.row .money{grid-column:2}}
+</style>
+</head>
+<body>
+<header>
+  <h1>Giỏ hàng nhiều shop</h1>
+  <button class="tab on" id="tCart">Giỏ hàng</button>
+  <button class="tab" id="tOrders">Đơn hàng</button>
+</header>
+<main id="app"></main>
+
+<script>
+const $ = s => document.querySelector(s);
+const vnd = n => new Intl.NumberFormat('vi-VN').format(n) + ' đ';
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+let view = 'cart', notice = null, openId = null, address = { text: 'Thái Nguyên', remote: false }, pay = 'COD';
+
+async function api(method, url, body) {
+  const res = await fetch('/api' + url, { method, headers: { 'Content-Type': 'application/json' }, body: body && JSON.stringify(body) });
+  const data = await res.json();
+  if (!res.ok) { const e = new Error(data.error || 'Lỗi'); e.data = data; throw e; }
+  return data;
+}
+const act = async fn => { try { await fn(); } catch (e) { notice = { err: 1, text: e.message }; } render(); };
+
+async function renderCart() {
+  const qs = `?address=${encodeURIComponent(address.text)}&remote=${address.remote ? 1 : 0}`;
+  const [cart, sum] = await Promise.all([api('GET', '/cart'), api('GET', '/cart/summary' + qs)]);
+  const sumBy = Object.fromEntries(sum.shops.map(s => [s.shop_id, s]));
+  const html = cart.shops.map(s => {
+    const ss = sumBy[s.shop_id];
+    return `<section class="card">
+      <div class="shop-h"><input type="checkbox" ${s.all_selected ? 'checked' : ''} ${s.items.every(i => !i.available) ? 'disabled' : ''}
+        onchange="act(()=>api('PATCH','/cart/select',{scope:'shop',shop_id:${s.shop_id},selected:this.checked}))">
+        ${esc(s.shop_name)} ${s.shop_locked ? '<span class="badge">Đã khóa</span>' : ''}</div>
+      ${s.items.map(i => `<div class="row ${i.available ? '' : 'off'}">
+        <input type="checkbox" ${i.is_selected && i.available ? 'checked' : ''} ${i.available ? '' : 'disabled'}
+          onchange="act(()=>api('PATCH','/cart/items/${i.id}',{is_selected:this.checked}))">
+        <div>${esc(i.name)}<br><small>${i.unavailable_reason ? esc(i.unavailable_reason) : ''}</small></div>
+        <div class="qty"><button onclick="act(()=>api('PATCH','/cart/items/${i.id}',{quantity:${i.quantity - 1}}))" ${i.quantity <= 1 ? 'disabled' : ''}>−</button>
+          <b>${i.quantity}</b><button onclick="act(()=>api('PATCH','/cart/items/${i.id}',{quantity:${i.quantity + 1}}))">+</button></div>
+        <div class="money">${vnd(i.line_total)}</div>
+        <button class="x" title="Xóa khỏi giỏ" onclick="act(()=>api('DELETE','/cart/items/${i.id}'))">×</button></div>`).join('')}
+      ${ss ? `<div class="shop-sum">
+        <div><span>Tiền hàng</span><span>${vnd(ss.subtotal)}</span></div>
+        <div><span>Phí ship (shop này)</span><span>${vnd(ss.shipping_fee)}</span></div>
+        ${ss.discount ? `<div><span>Voucher ${esc(ss.voucher_code)}</span><span>−${vnd(ss.discount)}</span></div>` : ''}
+        <div class="t"><span>Tổng đơn của shop</span><span>${vnd(ss.total)}</span></div></div>` : ''}
+    </section>`;
+  }).join('') || '<div class="card empty">Giỏ hàng trống.</div>';
+
+  $('#app').innerHTML = (notice ? `<div class="msg ${notice.err ? 'err' : ''}">${esc(notice.text)}</div>` : '') +
+    (cart.shops.length ? `<label class="card" style="padding:10px 14px;display:flex;gap:10px;align-items:center">
+      <input type="checkbox" ${cart.all_selected ? 'checked' : ''} onchange="act(()=>api('PATCH','/cart/select',{scope:'all',selected:this.checked}))"> Chọn tất cả</label>` : '') +
+    html + `<section class="card grand">
+      <div style="gap:10px;justify-content:flex-start;flex-wrap:wrap">
+        <input type="text" id="addr" value="${esc(address.text)}" placeholder="Địa chỉ giao hàng" style="flex:1;min-width:200px"
+          onchange="address.text=this.value;render()">
+        <label><input type="checkbox" ${address.remote ? 'checked' : ''} onchange="address.remote=this.checked;render()"> Vùng xa</label>
+        <select onchange="pay=this.value"><option ${pay === 'COD' ? 'selected' : ''} value="COD">Thanh toán khi nhận (COD)</option>
+          <option ${pay === 'ONLINE' ? 'selected' : ''} value="ONLINE">Thanh toán online</option></select></div>
+      <div><span>Số sản phẩm đã chọn</span><span>${sum.total_items_selected}</span></div>
+      <div><span>Tổng tiền ship (${sum.shops.length} shop)</span><span>${vnd(sum.total_shipping)}</span></div>
+      <div class="g"><span>Tổng thanh toán</span><span>${vnd(sum.grand_total)}</span></div>
+      <button class="btn" ${sum.shops.length ? '' : 'disabled'} onclick="checkout(${sum.grand_total})">Đặt hàng (${sum.shops.length} đơn)</button>
+    </section>`;
+}
+
+async function checkout(expected) {
+  try {
+    const r = await api('POST', '/checkout', { address, payment_method: pay, expected_total: expected });
+    notice = { text: `Đặt hàng thành công, tách thành ${r.orders.length} đơn. Các sản phẩm chưa chọn vẫn còn trong giỏ.` };
+  } catch (e) { notice = { err: 1, text: e.message }; }
+  render();
+}
+
+async function renderOrders() {
+  const list = await api('GET', '/orders');
+  const detail = openId ? await api('GET', '/orders/' + openId).catch(() => null) : null;
+  $('#app').innerHTML = (notice ? `<div class="msg ${notice.err ? 'err' : ''}">${esc(notice.text)}</div>` : '') +
+    (list.map(o => `<section class="card"><div class="ord-h" onclick="openId=${openId === o.id ? 'null' : o.id};notice=null;render()">
+      <b>${esc(o.order_code)}</b><span>${esc(o.shop_name)}</span><span class="badge">${esc(o.status_label)}</span>
+      <span class="sp"><b>${vnd(o.total)}</b></span></div>
+      ${detail && detail.id === o.id ? orderDetail(detail) : ''}</section>`).join('') || '<div class="card empty">Chưa có đơn hàng nào. Hãy chọn sản phẩm trong giỏ và đặt hàng.</div>');
+}
+
+function orderDetail(o) {
+  return `<div class="detail">
+    <div>${o.items.map(i => `<div style="display:flex;justify-content:space-between"><span>${esc(i.product_name_snapshot)} × ${i.quantity}</span><span>${vnd(i.line_total)}</span></div>`).join('')}
+      <div style="color:var(--mute);display:flex;justify-content:space-between"><span>Phí ship</span><span>${vnd(o.shipping_fee)}</span></div>
+      ${o.discount ? `<div style="color:var(--mute);display:flex;justify-content:space-between"><span>Giảm giá</span><span>−${vnd(o.discount)}</span></div>` : ''}</div>
+    ${o.next_options.length ? `<div><div style="color:var(--mute);font-size:13px;margin-bottom:4px">Mô phỏng thao tác (demo)</div><div class="acts">
+      ${o.next_options.map(n => `<button class="btn sm" onclick="changeStatus(${o.id},'${n.to}','${n.actor}')">${n.actor}: ${esc(n.label)}</button>`).join('')}</div></div>` : ''}
+    <ul class="tl">${o.timeline.map(h => `<li><b>${esc(h.to_label)}</b>
+      <div class="when">${esc(h.created_at)} · ${esc(h.actor_type)}</div>${h.note ? `<div>${esc(h.note)}</div>` : ''}</li>`).join('')}</ul></div>`;
+}
+
+async function changeStatus(id, to, actor) {
+  let note = '';
+  if (['CANCELLED', 'RETURN_REQUESTED', 'REFUNDED'].includes(to)) { note = prompt('Lý do:'); if (!note) return; }
+  try { await api('PATCH', `/orders/${id}/status`, { to, actor_type: actor, note }); notice = null; }
+  catch (e) { notice = { err: 1, text: e.message }; }
+  render();
+}
+
+function render() {
+  $('#tCart').classList.toggle('on', view === 'cart'); $('#tOrders').classList.toggle('on', view === 'orders');
+  (view === 'cart' ? renderCart() : renderOrders()).catch(e => $('#app').innerHTML = `<div class="msg err">${esc(e.message)}</div>`);
+}
+$('#tCart').onclick = () => { view = 'cart'; notice = null; render(); };
+$('#tOrders').onclick = () => { view = 'orders'; notice = null; render(); };
+render();
+</script>
+</body>
+</html>
